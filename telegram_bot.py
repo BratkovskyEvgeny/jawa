@@ -3,9 +3,8 @@ import logging
 from datetime import datetime
 from parser import AdvancedParser
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.constants import ParseMode
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler
 
 import config
 from database import Database
@@ -23,7 +22,7 @@ class JawaCzBot:
         self.parser = AdvancedParser()
         self.application = None
 
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def start(self, update: Update, context: CallbackContext):
         """Обработчик команды /start"""
         welcome_text = """
 🏍️ *Добро пожаловать в бот для поиска мотоциклов Jawa и CZ!*
@@ -59,7 +58,7 @@ class JawaCzBot:
             welcome_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup
         )
 
-    async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def help_command(self, update: Update, context: CallbackContext):
         """Обработчик команды /help"""
         help_text = """
 📖 *Справка по использованию бота*
@@ -71,35 +70,35 @@ class JawaCzBot:
 • `/stats` - Статистика по объявлениям
 • `/sites` - Объявления по конкретным сайтам
 
-        *Поиск:*
-        • Используйте `/search` для поиска по ключевым словам
-        • Бот автоматически ищет мотоциклы Jawa и CZ
-        • Поиск работает с разными вариантами написания (jawa, JAWA, Jawa, ява, Ява)
+*Поиск:*
+• Используйте `/search` для поиска по ключевым словам
+• Бот автоматически ищет мотоциклы Jawa и CZ
+• Поиск работает с разными вариантами написания (jawa, JAWA, Jawa, ява, Ява)
 
 *Уведомления:*
 • Бот автоматически проверяет новые объявления каждые 30 минут
 • Новые объявления помечаются как "новые"
 
-        *Поддерживаемые сайты:*
-        • Куфар - Jawa (Беларусь) - auto.kufar.by
-        • Куфар - Cezet (Беларусь) - auto.kufar.by
-        • AV.by - Jawa (Беларусь) - moto.av.by
-        • AV.by - Cezet (Беларусь) - moto.av.by
-        • abw.by (Беларусь) - abw.by
+*Поддерживаемые сайты:*
+• Куфар - Jawa (Беларусь) - auto.kufar.by
+• Куфар - Cezet (Беларусь) - auto.kufar.by
+• AV.by - Jawa (Беларусь) - moto.av.by
+• AV.by - Cezet (Беларусь) - moto.av.by
+• abw.by (Беларусь) - abw.by
 
-        *Примеры поиска:*
-        • Jawa
-        • CZ
-        • Чешский мотоцикл
-        • ява
+*Примеры поиска:*
+• Jawa
+• CZ
+• Чешский мотоцикл
+• ява
         """
 
-        await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+        update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
 
-    async def search_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def search_command(self, update: Update, context: CallbackContext):
         """Обработчик команды /search"""
         if not context.args:
-            await update.message.reply_text(
+            update.message.reply_text(
                 "🔍 *Поиск объявлений*\n\n"
                 "Используйте команду с ключевым словом:\n"
                 "`/search Jawa`\n"
@@ -110,7 +109,7 @@ class JawaCzBot:
             return
 
         query = " ".join(context.args)
-        await update.message.reply_text(
+        update.message.reply_text(
             f"🔍 Ищу объявления по запросу: *{query}*", parse_mode=ParseMode.MARKDOWN
         )
 
@@ -119,39 +118,37 @@ class JawaCzBot:
             ads = self.parser.search_specific_model(query)
 
             if not ads:
-                await update.message.reply_text(
-                    "❌ По вашему запросу ничего не найдено."
-                )
+                update.message.reply_text("❌ По вашему запросу ничего не найдено.")
                 return
 
             # Отправляем результаты
-            await self._send_ads_results(
+            self._send_ads_results(
                 update, ads, f"Результаты поиска по запросу: {query}"
             )
 
         except Exception as e:
             logger.error(f"Ошибка при поиске: {e}")
-            await update.message.reply_text(
+            update.message.reply_text(
                 "❌ Произошла ошибка при поиске. Попробуйте позже."
             )
 
-    async def latest_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def latest_command(self, update: Update, context: CallbackContext):
         """Обработчик команды /latest"""
-        await update.message.reply_text("📰 Получаю последние объявления...")
+        update.message.reply_text("📰 Получаю последние объявления...")
 
         try:
             # Получаем новые объявления из базы
             new_ads = self.db.get_new_advertisements(limit=20)
 
             if not new_ads:
-                await update.message.reply_text("📭 Новых объявлений пока нет.")
+                update.message.reply_text("📭 Новых объявлений пока нет.")
                 return
 
-            await self._send_ads_results(update, new_ads, "📰 Последние объявления:")
+            self._send_ads_results(update, new_ads, "📰 Последние объявления:")
 
         except Exception as e:
             logger.error(f"Ошибка при получении последних объявлений: {e}")
-            await update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
+            update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /stats"""
@@ -408,23 +405,26 @@ class JawaCzBot:
 
     def run(self):
         """Запуск бота"""
-        # Создаем приложение
-        self.application = Application.builder().token(config.TELEGRAM_TOKEN).build()
+        # Создаем updater
+        self.updater = Updater(token=config.TELEGRAM_TOKEN, use_context=True)
+
+        # Получаем dispatcher для регистрации обработчиков
+        dp = self.updater.dispatcher
 
         # Добавляем обработчики команд
-        self.application.add_handler(CommandHandler("start", self.start))
-        self.application.add_handler(CommandHandler("help", self.help_command))
-        self.application.add_handler(CommandHandler("search", self.search_command))
-        self.application.add_handler(CommandHandler("latest", self.latest_command))
-        self.application.add_handler(CommandHandler("stats", self.stats_command))
-        self.application.add_handler(CommandHandler("sites", self.sites_command))
+        dp.add_handler(CommandHandler("start", self.start))
+        dp.add_handler(CommandHandler("help", self.help_command))
+        dp.add_handler(CommandHandler("search", self.search_command))
+        dp.add_handler(CommandHandler("latest", self.latest_command))
+        dp.add_handler(CommandHandler("stats", self.stats_command))
+        dp.add_handler(CommandHandler("sites", self.sites_command))
 
         # Добавляем обработчик кнопок
-        self.application.add_handler(CallbackQueryHandler(self.button_callback))
+        dp.add_handler(CallbackQueryHandler(self.button_callback))
 
         # Запускаем бота
         logger.info("Бот запущен!")
-        self.application.run_polling()
+        self.updater.start_polling()
 
 
 if __name__ == "__main__":
