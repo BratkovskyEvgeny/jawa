@@ -3,7 +3,8 @@ import time
 from datetime import datetime
 from parser import AdvancedParser
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Updater
 
 import config
