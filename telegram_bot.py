@@ -1,10 +1,10 @@
-import asyncio
 import logging
+import time
 from datetime import datetime
 from parser import AdvancedParser
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode, Update
-from telegram.ext import CallbackQueryHandler, CommandHandler
+from telegram.ext import CallbackContext, CallbackQueryHandler, CommandHandler, Updater
 
 import config
 from database import Database
@@ -54,7 +54,7 @@ class JawaCzBot:
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(
+        update.message.reply_text(
             welcome_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup
         )
 
@@ -150,7 +150,7 @@ class JawaCzBot:
             logger.error(f"Ошибка при получении последних объявлений: {e}")
             update.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
 
-    async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def stats_command(self, update: Update, context: CallbackContext):
         """Обработчик команды /stats"""
         try:
             stats = self.db.get_statistics()
@@ -172,13 +172,13 @@ class JawaCzBot:
                 f"\n⏰ Последнее обновление: {datetime.now().strftime('%H:%M:%S')}"
             )
 
-            await update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
+            update.message.reply_text(stats_text, parse_mode=ParseMode.MARKDOWN)
 
         except Exception as e:
             logger.error(f"Ошибка при получении статистики: {e}")
-            await update.message.reply_text("❌ Ошибка при получении статистики.")
+            update.message.reply_text("❌ Ошибка при получении статистики.")
 
-    async def sites_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def sites_command(self, update: Update, context: CallbackContext):
         """Обработчик команды /sites"""
         keyboard = []
 
@@ -193,40 +193,38 @@ class JawaCzBot:
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        await update.message.reply_text(
+        update.message.reply_text(
             "🌐 *Выберите сайт для просмотра объявлений:*",
             parse_mode=ParseMode.MARKDOWN,
             reply_markup=reply_markup,
         )
 
-    async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    def button_callback(self, update: Update, context: CallbackContext):
         """Обработчик нажатий на кнопки"""
         query = update.callback_query
-        await query.answer()
+        query.answer()
 
         if query.data == "search":
             # Создаем фейковый update для команды поиска
             fake_update = type("Update", (), {"message": query.message})()
-            await self.search_command(fake_update, context)
+            self.search_command(fake_update, context)
         elif query.data == "latest":
             fake_update = type("Update", (), {"message": query.message})()
-            await self.latest_command(fake_update, context)
+            self.latest_command(fake_update, context)
         elif query.data == "stats":
             fake_update = type("Update", (), {"message": query.message})()
-            await self.stats_command(fake_update, context)
+            self.stats_command(fake_update, context)
         elif query.data == "sites":
             fake_update = type("Update", (), {"message": query.message})()
-            await self.sites_command(fake_update, context)
+            self.sites_command(fake_update, context)
         elif query.data.startswith("site_"):
             site_key = query.data.replace("site_", "")
-            await self._show_site_ads(update, context, site_key)
+            self._show_site_ads(update, context, site_key)
         elif query.data.startswith("ad_"):
             ad_id = int(query.data.replace("ad_", ""))
-            await self._show_ad_details(update, context, ad_id)
+            self._show_ad_details(update, context, ad_id)
 
-    async def _show_site_ads(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE, site_key: str
-    ):
+    def _show_site_ads(self, update: Update, context: CallbackContext, site_key: str):
         """Показать объявления с конкретного сайта"""
         try:
             site_ads = self.db.get_advertisements_by_site(
@@ -234,12 +232,12 @@ class JawaCzBot:
             )
 
             if not site_ads:
-                await update.callback_query.edit_message_text(
+                update.callback_query.edit_message_text(
                     f"📭 На сайте {config.PARSING_SITES[site_key]['name']} пока нет объявлений."
                 )
                 return
 
-            await self._send_ads_results(
+            self._send_ads_results(
                 update,
                 site_ads,
                 f"🌐 Объявления с сайта {config.PARSING_SITES[site_key]['name']}:",
@@ -247,13 +245,11 @@ class JawaCzBot:
 
         except Exception as e:
             logger.error(f"Ошибка при получении объявлений с сайта: {e}")
-            await update.callback_query.edit_message_text(
+            update.callback_query.edit_message_text(
                 "❌ Ошибка при получении объявлений."
             )
 
-    async def _show_ad_details(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE, ad_id: int
-    ):
+    def _show_ad_details(self, update: Update, context: CallbackContext, ad_id: int):
         """Показать детали объявления"""
         try:
             # Получаем детали объявления
@@ -261,7 +257,7 @@ class JawaCzBot:
             ad = next((ad for ad in ads if ad["id"] == ad_id), None)
 
             if not ad:
-                await update.callback_query.answer("Объявление не найдено")
+                update.callback_query.answer("Объявление не найдено")
                 return
 
             # Отмечаем как просмотренное
@@ -284,7 +280,7 @@ class JawaCzBot:
             keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="latest")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await update.callback_query.edit_message_text(
+            update.callback_query.edit_message_text(
                 details_text,
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=reply_markup,
@@ -293,12 +289,12 @@ class JawaCzBot:
 
         except Exception as e:
             logger.error(f"Ошибка при показе деталей объявления: {e}")
-            await update.callback_query.answer("Ошибка при получении деталей")
+            update.callback_query.answer("Ошибка при получении деталей")
 
-    async def _send_ads_results(self, update: Update, ads: list, title: str):
+    def _send_ads_results(self, update: Update, ads: list, title: str):
         """Отправка результатов поиска объявлений"""
         if not ads:
-            await update.message.reply_text("📭 Объявления не найдены.")
+            update.message.reply_text("📭 Объявления не найдены.")
             return
 
         # Добавляем отладочную информацию
@@ -306,7 +302,7 @@ class JawaCzBot:
         logger.info(f"Первое объявление: {ads[0] if ads else 'Нет объявлений'}")
 
         # Отправляем заголовок
-        await update.message.reply_text(
+        update.message.reply_text(
             f"**{title}**\nНайдено: {len(ads)} объявлений",
             parse_mode=ParseMode.MARKDOWN,
         )
@@ -315,12 +311,12 @@ class JawaCzBot:
         for i in range(0, len(ads), 5):
             batch = ads[i : i + 5]
             logger.info(f"Отправляю группу {i//5 + 1}: {len(batch)} объявлений")
-            await self._send_ads_batch(update, batch)
+            self._send_ads_batch(update, batch)
 
         # Добавляем отладочную информацию
         logger.info(f"Завершена отправка {len(ads)} объявлений для запроса: {title}")
 
-    async def _send_ads_batch(self, update: Update, ads: list):
+    def _send_ads_batch(self, update: Update, ads: list):
         """Отправка группы объявлений"""
         logger.info(f"Начинаю отправку группы из {len(ads)} объявлений")
 
@@ -354,10 +350,10 @@ class JawaCzBot:
                     ad_text += f"\n📝 {description}"
 
                 # Отправляем без Markdown для избежания ошибок
-                await update.message.reply_text(ad_text)
+                update.message.reply_text(ad_text)
 
                 # Небольшая задержка между сообщениями
-                await asyncio.sleep(0.5)
+                time.sleep(0.5)
 
                 # Добавляем отладочную информацию
                 logger.info(f"Успешно отправлено объявление {i+1}: {title}")
@@ -367,7 +363,7 @@ class JawaCzBot:
                 # Пытаемся отправить хотя бы заголовок
                 try:
                     simple_text = f"🏍️ {ad.get('title', 'Объявление')} - {ad.get('price', 'Цена не указана')}"
-                    await update.message.reply_text(simple_text)
+                    update.message.reply_text(simple_text)
                     logger.info(f"Отправлено упрощенное объявление {i+1}")
                 except Exception as e2:
                     logger.error(
@@ -377,7 +373,7 @@ class JawaCzBot:
 
         logger.info(f"Завершена отправка группы из {len(ads)} объявлений")
 
-    async def run_parsing(self):
+    def run_parsing(self):
         """Запуск автоматического парсинга"""
         while True:
             try:
@@ -397,11 +393,11 @@ class JawaCzBot:
                 )
 
                 # Ждем следующего цикла
-                await asyncio.sleep(config.PARSING_INTERVAL * 60)
+                time.sleep(config.PARSING_INTERVAL * 60)
 
             except Exception as e:
                 logger.error(f"Ошибка в автоматическом парсинге: {e}")
-                await asyncio.sleep(300)  # Ждем 5 минут при ошибке
+                time.sleep(300)  # Ждем 5 минут при ошибке
 
     def run(self):
         """Запуск бота"""
