@@ -325,47 +325,60 @@ class JawaCzBot:
 
     async def _send_ads_batch(self, update: Update, ads: list):
         """Отправка группы объявлений"""
-        for ad in ads:
+        logger.info(f"Начинаю отправку группы из {len(ads)} объявлений")
+
+        for i, ad in enumerate(ads):
             try:
                 # Добавляем отладочную информацию
-                logger.info(f"Обрабатываю объявление: {ad}")
+                logger.info(f"Обрабатываю объявление {i+1}/{len(ads)}: {ad}")
 
-                # Формируем текст объявления
-                ad_text = f"""
-🏍️ *{ad.get('title', 'Без заголовка')}*
-💰 Цена: {ad.get('price', 'Не указана')}
-🌐 Сайт: {ad.get('site_name', 'Не указан')}
-🔗 [Ссылка]({ad.get('link', '#')})
-                """
+                # Проверяем структуру объявления
+                title = ad.get("title", "Без заголовка")
+                price = ad.get("price", "Не указана")
+                site_name = ad.get("site_name", "Не указан")
+                link = ad.get("link", "#")
+
+                logger.info(
+                    f"Данные объявления: title='{title}', price='{price}', site='{site_name}'"
+                )
+
+                # Формируем простой текст объявления без Markdown
+                ad_text = f"""🏍️ {title}
+💰 Цена: {price}
+🌐 Сайт: {site_name}
+🔗 Ссылка: {link}"""
 
                 if ad.get("description"):
-                    ad_text += f"\n📝 {ad['description'][:100]}..."
+                    description = (
+                        ad["description"][:100]
+                        if len(ad["description"]) > 100
+                        else ad["description"]
+                    )
+                    ad_text += f"\n📝 {description}"
 
-                # Кнопка для просмотра деталей
-                keyboard = [
-                    [
-                        InlineKeyboardButton(
-                            "📋 Детали", callback_data=f"ad_{ad.get('id', 0)}"
-                        )
-                    ]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-
-                await update.message.reply_text(
-                    ad_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup
-                )
+                # Отправляем без Markdown для избежания ошибок
+                await update.message.reply_text(ad_text)
 
                 # Небольшая задержка между сообщениями
                 await asyncio.sleep(0.5)
 
                 # Добавляем отладочную информацию
-                logger.info(
-                    f"Успешно отправлено объявление: {ad.get('title', 'Без заголовка')}"
-                )
+                logger.info(f"Успешно отправлено объявление {i+1}: {title}")
 
             except Exception as e:
-                logger.error(f"Ошибка при отправке объявления {ad}: {e}")
+                logger.error(f"Ошибка при отправке объявления {i+1} {ad}: {e}")
+                # Пытаемся отправить хотя бы заголовок
+                try:
+                    simple_text = f"🏍️ {ad.get('title', 'Объявление')} - {ad.get('price', 'Цена не указана')}"
+                    await update.message.reply_text(simple_text)
+                    logger.info(f"Отправлено упрощенное объявление {i+1}")
+                except Exception as e2:
+                    logger.error(
+                        f"Не удалось отправить даже упрощенное объявление {i+1}: {e2}"
+                    )
                 continue
+
+        logger.info(f"Завершена отправка группы из {len(ads)} объявлений")
 
     async def run_parsing(self):
         """Запуск автоматического парсинга"""
