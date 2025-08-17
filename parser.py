@@ -206,7 +206,9 @@ class MotorcycleParser:
             title = ad.get("title", "").lower()
             description = ad.get("description", "").lower()
 
-            print(f"📋 Объявление {i+1}: title='{title[:50]}...', description='{description[:50]}...'")
+            print(
+                f"📋 Объявление {i+1}: title='{title[:50]}...', description='{description[:50]}...'"
+            )
 
             # Проверяем по ключевым словам Jawa/CZ (игнорируем конкретные модели)
             for keyword in jawa_keywords:
