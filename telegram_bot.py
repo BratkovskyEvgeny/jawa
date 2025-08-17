@@ -115,19 +115,30 @@ class JawaCzBot:
 
         # Выполняем поиск
         try:
+            logger.info(f"🔍 Начинаю поиск по запросу: {query}")
+            
             ads = self.parser.search_specific_model(query)
-
+            
+            logger.info(f"📊 Парсер вернул {len(ads)} объявлений")
+            if ads:
+                logger.info(f"📝 Пример первого объявления: {ads[0]}")
+            
             if not ads:
+                logger.warning(f"❌ По запросу '{query}' ничего не найдено")
                 update.message.reply_text("❌ По вашему запросу ничего не найдено.")
                 return
 
+            logger.info(f"✅ Найдено {len(ads)} объявлений, начинаю отправку")
+            
             # Отправляем результаты
             self._send_ads_results(
                 update, ads, f"Результаты поиска по запросу: {query}"
             )
 
         except Exception as e:
-            logger.error(f"Ошибка при поиске: {e}")
+            logger.error(f"❌ Ошибка при поиске: {e}")
+            import traceback
+            logger.error(f"🔍 Traceback: {traceback.format_exc()}")
             update.message.reply_text(
                 "❌ Произошла ошибка при поиске. Попробуйте позже."
             )

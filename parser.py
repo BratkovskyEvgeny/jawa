@@ -170,7 +170,13 @@ class MotorcycleParser:
 
     def search_specific_model(self, model: str) -> List[Dict]:
         """Поиск мотоциклов Jawa и CZ по ключевым словам"""
+        print(f"🔍 Начинаю поиск по запросу: '{model}'")
+
         all_ads = self.parse_all_sites()
+        print(f"📊 Всего найдено объявлений: {len(all_ads)}")
+
+        if all_ads:
+            print(f"📝 Пример первого объявления: {all_ads[0]}")
 
         # Фильтруем по ключевым словам Jawa и CZ
         model_ads = []
@@ -194,16 +200,22 @@ class MotorcycleParser:
             "Чезет",
         ]
 
-        for ad in all_ads:
+        print(f"🔑 Ищу по ключевым словам: {jawa_keywords[:5]}...")
+
+        for i, ad in enumerate(all_ads):
             title = ad.get("title", "").lower()
             description = ad.get("description", "").lower()
+
+            print(f"📋 Объявление {i+1}: title='{title[:50]}...', description='{description[:50]}...'")
 
             # Проверяем по ключевым словам Jawa/CZ (игнорируем конкретные модели)
             for keyword in jawa_keywords:
                 if keyword.lower() in title or keyword.lower() in description:
+                    print(f"✅ Найдено совпадение '{keyword}' в объявлении {i+1}")
                     model_ads.append(ad)
                     break
 
+        print(f"🎯 Итоговый результат: найдено {len(model_ads)} объявлений")
         return model_ads
 
 
