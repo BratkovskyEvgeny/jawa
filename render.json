@@ -2,6 +2,6 @@
     "name": "jawa-bot",
     "type": "web",
     "env": "python",
-    "buildCommand": "pip install -r requirements.txt",
+    "buildCommand": "pip install -r requirements_simple.txt",
     "startCommand": "python render_start.py"
 }
